@@ -55,9 +55,10 @@ jobs:
 
       - name: Build and push dev
         run: |
+          echo "TAG=${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev"
           docker buildx build --push \
             -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev \
-            $GITHUB_WORKSPACE
+            .
 
   build-release:
     if: github.ref_type == 'tag'
@@ -88,4 +89,4 @@ jobs:
           docker buildx build --push \
             -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:${{ env.VERSION_TAG }} \
             -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:latest \
-            $GITHUB_WORKSPACE
+            .
