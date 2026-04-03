@@ -44,9 +44,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
 
-      - name: Set up Docker (dind)
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
       - name: Login to Docker Hub
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
@@ -55,10 +52,8 @@ jobs:
 
       - name: Build and push dev
         run: |
-          echo "TAG=${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev"
-          docker buildx build --push \
-            -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev \
-            .
+          docker build -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev .
+          docker push ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev
 
   build-release:
     if: github.ref_type == 'tag'
@@ -72,9 +67,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3
 
-      - name: Set up Docker (dind)
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
       - name: Extract version from tag
         run: echo "VERSION_TAG=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
@@ -86,7 +78,9 @@ jobs:
 
       - name: Build and push release
         run: |
-          docker buildx build --push \
+          docker build \
             -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:${{ env.VERSION_TAG }} \
             -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:latest \
             .
+          docker push ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:${{ env.VERSION_TAG }}
+          docker push ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:latest
