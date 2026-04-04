@@ -35,6 +35,9 @@ jobs:
   build-dev:
     if: github.ref_type == 'branch'
     runs-on: ubuntu
+    env:
+      IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+      REGISTRY_USER: ${{ vars.REGISTRY_USER }}
     container:
       image: docker:dind@sha256:686d2c5464787b0ca42420e0aa03a94fc9781ff9bf8b5ff947614b9fa4c3c3e0
     steps:
@@ -56,12 +59,15 @@ jobs:
       - name: Build and push dev
         run: |
           docker buildx build --push \
-            -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev \
+            -t $REGISTRY_USER/$IMAGE_NAME:dev \
             .
 
   build-release:
     if: github.ref_type == 'tag'
     runs-on: ubuntu
+    env:
+      IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+      REGISTRY_USER: ${{ vars.REGISTRY_USER }}
     container:
       image: docker:dind@sha256:686d2c5464787b0ca42420e0aa03a94fc9781ff9bf8b5ff947614b9fa4c3c3e0
     steps:
@@ -86,6 +92,6 @@ jobs:
       - name: Build and push release
         run: |
           docker buildx build --push \
-            -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:${{ env.VERSION_TAG }} \
-            -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:latest \
+            -t $REGISTRY_USER/$IMAGE_NAME:$VERSION_TAG \
+            -t $REGISTRY_USER/$IMAGE_NAME:latest \
             .
