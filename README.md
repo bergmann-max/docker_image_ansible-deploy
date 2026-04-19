@@ -1,6 +1,6 @@
 # docker image ansible-deploy
 
-A lightweight Docker image based on Alpine Linux for Ansible automation. Ideal for CI/CD pipelines.
+Minimal Alpine-based image for Ansible. Built for CI/CD.
 
 ## Included Tools
 
@@ -9,15 +9,7 @@ A lightweight Docker image based on Alpine Linux for Ansible automation. Ideal f
 - `mitogen`
 - `netaddr`
 - `jmespath`
-- **system tools:**
-  - `openssh-client`
-  - `git`
-  - `sshpass`
-  - `rsync`
-  - `gnupg`
-  - `curl`
-  - `wget`
-  - `jq`
+- **System tools**: `openssh-client`, `git`, `sshpass`, `rsync`, `gnupg`, `curl`, `wget`, `jq`
 
 ## Included Collections
 
@@ -44,6 +36,7 @@ docker run --rm -v $(pwd):/ansible maxbergmann/ansible-deploy:latest ansible-pla
 ```bash
 docker buildx build --push \
   -t maxbergmann/ansible-deploy:1.0 \
+  -t maxbergmann/ansible-deploy:1.0.1 \
   -t maxbergmann/ansible-deploy:latest \
   .
 ```
