@@ -6,7 +6,7 @@
 #        git push origin main
 #   2. Create a version tag (must start with "v"):
 #        git tag v1.2
-#   3. Push the tag to Gitea:
+#   3. Push the tag to Forgejo:
 #        git push origin v1.2
 #   → The workflow will start automatically and build/push the image
 #     as "ansible-deploy:1.2" and "ansible-deploy:latest"
@@ -20,7 +20,6 @@
 #   REGISTRY_USER - Docker Hub username
 #   IMAGE_NAME    - Docker image name
 
-
 name: Build docker image ansible-deploy
 
 on:
@@ -28,7 +27,7 @@ on:
     branches:
       - main
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 jobs:
