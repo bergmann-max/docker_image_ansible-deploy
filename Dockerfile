@@ -1,7 +1,6 @@
 FROM alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    ANSIBLE_CONFIG=/etc/ansible/ansible.cfg \
     ANSIBLE_COLLECTIONS_PATH=/home/ansible/.ansible/collections
 
 RUN apk add --no-cache \
