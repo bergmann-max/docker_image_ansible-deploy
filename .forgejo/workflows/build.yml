@@ -49,17 +49,74 @@ jobs:
       - name: Set up Docker (dind)
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
+      - name: Build image (load)
+        run: |
+          docker buildx build --load \
+            -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate \
+            .
+
+      - name: Test image (smoke + lint + playbook)
+        env:
+          IMAGE: ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate
+        run: |
+          set -eu
+
+          echo "::group::Smoke: versions"
+          docker run --rm "$IMAGE" ansible --version
+          docker run --rm "$IMAGE" ansible-lint --version
+
+          echo "::group::Smoke: collections"
+          docker run --rm "$IMAGE" sh -c '
+            set -eu
+            list=$(ansible-galaxy collection list 2>/dev/null)
+            for c in ansible.posix community.crypto community.docker community.general devsec.hardening; do
+              echo "$list" | grep -q "^$c " || { echo "missing collection: $c"; exit 1; }
+            done
+          '
+
+          echo "::group::Smoke: python modules"
+          docker run --rm "$IMAGE" python3 -c "import netaddr, jmespath"
+
+          echo "::group::Smoke: CLI tools on PATH"
+          docker run --rm "$IMAGE" sh -c '
+            set -eu
+            for t in ssh sshpass rsync gpg curl wget jq git; do
+              command -v "$t" >/dev/null || { echo "missing tool: $t"; exit 1; }
+            done
+          '
+
+          echo "::group::Smoke: user/uid"
+          docker run --rm "$IMAGE" sh -c '[ "$(id -u)" = "1000" ] && [ "$(whoami)" = "ansible" ]'
+
+          echo "::group::Lint + playbook"
+          docker run --rm "$IMAGE" sh -c '
+            set -eu
+            cat > /tmp/p.yml <<EOF
+          - name: Smoke test play
+            hosts: localhost
+            gather_facts: false
+            tasks:
+              - name: Ping
+                ansible.builtin.debug:
+                  msg: ok
+          EOF
+            ansible-lint /tmp/p.yml
+            ansible-playbook --syntax-check /tmp/p.yml
+            ansible-playbook -i "localhost," -c local /tmp/p.yml
+          '
+
       - name: Login to Docker Hub
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ vars.REGISTRY_USER }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Build and push dev
+      - name: Tag and push dev
         run: |
-          docker buildx build --push \
-            -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev \
-            .
+          docker tag \
+            ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate \
+            ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev
+          docker push ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev
 
   build-release:
     if: github.ref_type == 'tag'
@@ -82,15 +139,58 @@ jobs:
       - name: Extract version from tag
         run: echo "VERSION_TAG=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
 
+      - name: Build image (load)
+        run: |
+          docker buildx build --load \
+            -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate \
+            .
+
+      - name: Smoke test image
+        env:
+          IMAGE: ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate
+        run: |
+          set -eu
+
+          echo "::group::Smoke: versions"
+          docker run --rm "$IMAGE" ansible --version
+          docker run --rm "$IMAGE" ansible-lint --version
+
+          echo "::group::Smoke: collections"
+          docker run --rm "$IMAGE" sh -c '
+            set -eu
+            list=$(ansible-galaxy collection list 2>/dev/null)
+            for c in ansible.posix community.crypto community.docker community.general devsec.hardening; do
+              echo "$list" | grep -q "^$c " || { echo "missing collection: $c"; exit 1; }
+            done
+          '
+
+          echo "::group::Smoke: python modules"
+          docker run --rm "$IMAGE" python3 -c "import netaddr, jmespath"
+
+          echo "::group::Smoke: CLI tools on PATH"
+          docker run --rm "$IMAGE" sh -c '
+            set -eu
+            for t in ssh sshpass rsync gpg curl wget jq git; do
+              command -v "$t" >/dev/null || { echo "missing tool: $t"; exit 1; }
+            done
+          '
+
+          echo "::group::Smoke: user/uid"
+          docker run --rm "$IMAGE" sh -c '[ "$(id -u)" = "1000" ] && [ "$(whoami)" = "ansible" ]'
+
       - name: Login to Docker Hub
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ vars.REGISTRY_USER }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Build and push release
+      - name: Tag and push release
         run: |
-          docker buildx build --push \
-            -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:${{ env.VERSION_TAG }} \
-            -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:latest \
-            .
+          docker tag \
+            ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate \
+            ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:${{ env.VERSION_TAG }}
+          docker tag \
+            ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate \
+            ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:latest
+          docker push ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:${{ env.VERSION_TAG }}
+          docker push ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:latest
