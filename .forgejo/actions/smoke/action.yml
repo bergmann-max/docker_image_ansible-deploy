@@ -1,0 +1,204 @@
+---
+name: Smoke test ansible-deploy image
+description: >
+  Runs version, dependency, environment, layout, cleanup, playbook and
+  vulnerability checks against a locally built ansible-deploy image.
+
+inputs:
+  image:
+    description: Full image reference to test (e.g. user/repo:tag).
+    required: true
+  trivy-image:
+    description: Trivy scanner image used for the vulnerability scan.
+    required: false
+    default: aquasec/trivy:0.70.0
+
+runs:
+  using: composite
+  steps:
+    - name: Versions (informational)
+      shell: sh
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        docker run --rm "$IMAGE" ansible --version
+        docker run --rm "$IMAGE" ansible-lint --version
+
+    - name: Pip package versions match requirements.txt
+      shell: sh
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        docker run --rm -i "$IMAGE" sh -c '
+          set -eu
+          fail=0
+          while IFS= read -r line; do
+            # strip inline comments and surrounding whitespace
+            line=${line%%#*}
+            line=$(printf "%s" "$line" | tr -d "[:space:]")
+            if [ -z "$line" ]; then continue; fi
+            pkg=${line%%==*}
+            want=${line##*==}
+            got=$(pip show "$pkg" 2>/dev/null | awk -F": " "/^Version: /{print \$2}")
+            if [ "$got" != "$want" ]; then
+              echo "FAIL: $pkg expected $want, got ${got:-MISSING}"
+              fail=1
+            else
+              echo "OK:   $pkg==$want"
+            fi
+          done
+          exit $fail
+        ' < requirements.txt
+
+    - name: Collection versions match requirements.yml
+      shell: sh
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        REQ_YML=$(cat requirements.yml)
+        docker run --rm -e REQ_YML="$REQ_YML" "$IMAGE" sh -c '
+          set -eu
+          printf "%s" "$REQ_YML" > /tmp/req.yml
+          ansible-galaxy collection list 2>/dev/null > /tmp/list
+          cat > /tmp/check.py <<EOF
+        import re, sys, yaml
+        with open("/tmp/req.yml") as f:
+            data = yaml.safe_load(f)
+        with open("/tmp/list") as f:
+            listing = f.read()
+        fail = False
+        for c in data["collections"]:
+            name = c["name"]
+            want = str(c["version"])
+            m = re.search(rf"^{re.escape(name)}\s+(\S+)", listing, re.M)
+            if not m:
+                print(f"FAIL: {name} missing"); fail = True; continue
+            got = m.group(1)
+            if got != want:
+                print(f"FAIL: {name} expected {want}, got {got}"); fail = True
+            else:
+                print(f"OK:   {name} {want}")
+        sys.exit(1 if fail else 0)
+        EOF
+          python3 /tmp/check.py
+        '
+
+    - name: Python modules importable
+      shell: sh
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: docker run --rm "$IMAGE" python3 -c "import netaddr, jmespath, mitogen"
+
+    - name: CLI tools on PATH
+      shell: sh
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        docker run --rm "$IMAGE" sh -c '
+          set -eu
+          for t in python3 pip ssh sshpass rsync gpg curl wget jq git \
+                   ansible ansible-lint ansible-playbook ansible-galaxy; do
+            command -v "$t" >/dev/null || { echo "missing tool: $t"; exit 1; }
+          done
+        '
+
+    - name: User, UID, HOME
+      shell: sh
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        docker run --rm "$IMAGE" sh -c '
+          set -eu
+          [ "$(id -u)" = "1000" ]       || { echo "uid not 1000";       exit 1; }
+          [ "$(whoami)" = "ansible" ]   || { echo "user not ansible";   exit 1; }
+          [ "$HOME" = "/home/ansible" ] || { echo "HOME wrong: $HOME";  exit 1; }
+        '
+
+    - name: ENV vars match Dockerfile
+      shell: sh
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        docker run --rm "$IMAGE" sh -c '
+          set -eu
+          [ "$ANSIBLE_COLLECTIONS_PATH" = "/home/ansible/.ansible/collections" ] \
+            || { echo "ANSIBLE_COLLECTIONS_PATH wrong: $ANSIBLE_COLLECTIONS_PATH"; exit 1; }
+          [ "$ANSIBLE_HOST_KEY_CHECKING" = "False" ] \
+            || { echo "ANSIBLE_HOST_KEY_CHECKING wrong: $ANSIBLE_HOST_KEY_CHECKING"; exit 1; }
+        '
+
+    - name: WORKDIR is /ansible
+      shell: sh
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: docker run --rm "$IMAGE" sh -c '[ "$(pwd)" = "/ansible" ] || { echo "pwd: $(pwd)"; exit 1; }'
+
+    - name: Cleanup check (no archives, bytecode or dev dirs)
+      shell: sh
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        docker run --rm "$IMAGE" sh -c '
+          set -eu
+          base="$ANSIBLE_COLLECTIONS_PATH"
+          bad=$(find "$base" \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.pyc" -o -name "*.pyo" \) -print 2>/dev/null | head -n 5)
+          if [ -n "$bad" ]; then
+            echo "stale archives/bytecode found:"; echo "$bad"; exit 1
+          fi
+          dirs=$(find "$base" -type d \( -name tests -o -name docs -o -name changelogs -o -name .github \) -print 2>/dev/null | head -n 5)
+          if [ -n "$dirs" ]; then
+            echo "stale dev dirs found:"; echo "$dirs"; exit 1
+          fi
+        '
+
+    - name: Lint + playbook exercising real collection modules
+      shell: sh
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        PLAYBOOK='- name: Smoke test play
+          hosts: localhost
+          gather_facts: false
+          tasks:
+            - name: Write a file via community.general.ini_file
+              community.general.ini_file:
+                path: /tmp/smoke.ini
+                section: test
+                option: ok
+                value: "1"
+                mode: "0644"
+
+            - name: Generate a key via community.crypto.openssl_privatekey
+              community.crypto.openssl_privatekey:
+                path: /tmp/smoke.key
+                size: 2048
+                type: RSA
+                mode: "0600"
+
+            - name: Evaluate a JMESPath expression via community.general.json_query
+              ansible.builtin.assert:
+                that:
+                  - "({\"a\": [1, 2, 3]} | community.general.json_query(\"a[1]\")) == 2"
+        '
+        docker run --rm -e PLAYBOOK="$PLAYBOOK" "$IMAGE" sh -c '
+          set -eu
+          printf "%s\n" "$PLAYBOOK" > /tmp/p.yml
+          ansible-lint /tmp/p.yml
+          ansible-playbook --syntax-check /tmp/p.yml
+          ansible-playbook -i "localhost," -c local /tmp/p.yml
+        '
+
+    - name: Trivy vulnerability scan (HIGH, CRITICAL, ignore-unfixed)
+      shell: sh
+      env:
+        IMAGE: ${{ inputs.image }}
+        TRIVY_IMAGE: ${{ inputs.trivy-image }}
+      run: |
+        docker run --rm \
+          -v /var/run/docker.sock:/var/run/docker.sock \
+          "$TRIVY_IMAGE" image \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --exit-code 1 \
+            --no-progress \
+            "$IMAGE"
