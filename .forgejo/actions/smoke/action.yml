@@ -168,14 +168,12 @@ runs:
                 option: ok
                 value: "1"
                 mode: "0644"
-
             - name: Generate a key via community.crypto.openssl_privatekey
               community.crypto.openssl_privatekey:
                 path: /tmp/smoke.key
                 size: 2048
                 type: RSA
                 mode: "0600"
-
             - name: Evaluate a JMESPath expression via community.general.json_query
               ansible.builtin.assert:
                 that:
