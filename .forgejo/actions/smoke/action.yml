@@ -131,7 +131,8 @@ runs:
       shell: sh
       env:
         IMAGE: ${{ inputs.image }}
-      run: docker run --rm "$IMAGE" sh -c '[ "$(pwd)" = "/ansible" ] || { echo "pwd: $(pwd)"; exit 1; }'
+      run: |
+        docker run --rm "$IMAGE" sh -c '[ "$(pwd)" = "/ansible" ] || { echo "pwd: $(pwd)"; exit 1; }'
 
     - name: Cleanup check (no archives, bytecode or dev dirs)
       shell: sh
