@@ -177,8 +177,7 @@ runs:
             - name: Evaluate a JMESPath expression via community.general.json_query
               ansible.builtin.assert:
                 that:
-                  - "({\"a\": [1, 2, 3]} | community.general.json_query(\"a[1]\")) == 2"
-        '
+                  - "({\"a\": [1, 2, 3]} | community.general.json_query(\"a[1]\")) == 2"'
         docker run --rm -e PLAYBOOK="$PLAYBOOK" "$IMAGE" sh -c '
           set -eu
           printf "%s\n" "$PLAYBOOK" > /tmp/p.yml
