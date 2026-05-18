@@ -4,23 +4,22 @@ ENV PIP_NO_CACHE_DIR=1 \
     ANSIBLE_COLLECTIONS_PATH=/home/ansible/.ansible/collections \
     ANSIBLE_HOST_KEY_CHECKING=False
 
+COPY requirements.txt /tmp/requirements.txt
+
 RUN apk add --no-cache \
     python3 py3-pip openssh-client git \
     sshpass rsync gnupg curl wget jq \
-    && pip install --no-cache-dir --break-system-packages \
-    ansible-core ansible-lint mitogen netaddr jmespath \
+    && pip install --no-cache-dir --break-system-packages -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt \
     && adduser -D -u 1000 ansible \
     && mkdir -p /home/ansible/.ansible/collections /ansible \
     && chown -R ansible:ansible /home/ansible /ansible
 
+COPY --chown=ansible:ansible requirements.yml /home/ansible/requirements.yml
+
 USER ansible
 
-RUN ansible-galaxy collection install \
-    ansible.posix \
-    community.crypto \
-    community.docker \
-    community.general \
-    devsec.hardening \
+RUN ansible-galaxy collection install -r /home/ansible/requirements.yml \
     && find "${ANSIBLE_COLLECTIONS_PATH}" \
     \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.pyc" -o -name "*.pyo" \) -delete \
     && find "${ANSIBLE_COLLECTIONS_PATH}" \
