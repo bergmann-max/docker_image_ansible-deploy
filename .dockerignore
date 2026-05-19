@@ -1,0 +1,30 @@
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# CI / tooling
+.github
+.forgejo
+.claude
+.vscode
+.idea
+renovate.json
+
+# Local Ansible state
+.ansible
+
+# Docs (not needed in image)
+README.md
+LICENSE
+*.md
+
+# OS / editor cruft
+**/.DS_Store
+**/Thumbs.db
+**/*.swp
+**/*~
+
+# Build artifacts
+Dockerfile
+.dockerignore
