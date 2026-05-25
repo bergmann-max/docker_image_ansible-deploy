@@ -35,7 +35,7 @@ jobs:
     if: github.ref_type == 'branch'
     runs-on: arm64
     container:
-      image: docker:dind@sha256:8e3fae900cbfbdc14e8abca89a9e44363065cb535f34a09283c59cc0dde2de20
+      image: docker:dind@sha256:6b9cd914eb9c6b342c040a49a27a5eb3804453bae6ecc90f7ff96133595a95e8
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
 
@@ -80,7 +80,7 @@ jobs:
     if: github.ref_type == 'tag'
     runs-on: arm64
     container:
-      image: docker:dind@sha256:8e3fae900cbfbdc14e8abca89a9e44363065cb535f34a09283c59cc0dde2de20
+      image: docker:dind@sha256:6b9cd914eb9c6b342c040a49a27a5eb3804453bae6ecc90f7ff96133595a95e8
       volumes:
         - /var/run/docker.sock:/var/run/docker.sock
 
