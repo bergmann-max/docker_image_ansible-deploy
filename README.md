@@ -42,18 +42,6 @@ Alpine-based Ansible image for CI/CD pipelines. Runs as non-root user (ansible, 
 | [`community.general`](https://galaxy.ansible.com/ui/repo/published/community/general/) | ![v](https://img.shields.io/badge/dynamic/yaml?url=https://raw.githubusercontent.com/bergmann-max/docker_image_ansible-deploy/main/requirements.yml&query=$.collections[4].version&label=&color=green&style=flat-square) |
 | [`devsec.hardening`](https://galaxy.ansible.com/ui/repo/published/devsec/hardening/) | ![v](https://img.shields.io/badge/dynamic/yaml?url=https://raw.githubusercontent.com/bergmann-max/docker_image_ansible-deploy/main/requirements.yml&query=$.collections[5].version&label=&color=green&style=flat-square) |
 
-## Usage
-
-```bash
-docker pull maxbergmann/ansible-deploy:latest
-```
-
-Run a playbook:
-
-```bash
-docker run --rm -v $(pwd):/ansible maxbergmann/ansible-deploy:latest ansible-playbook site.yml
-```
-
 ## Build & Push
 
 ```bash
@@ -63,7 +51,19 @@ docker buildx build --push \
   .
 ```
 
-## CI/CD Example (Actions)
+## Usage
+
+```bash
+docker pull maxbergmann/ansible-deploy:latest
+```
+
+### Run a playbook
+
+```bash
+docker run --rm -v $(pwd):/ansible maxbergmann/ansible-deploy:latest ansible-playbook site.yml
+```
+
+### CI/CD Example (Actions)
 
 ```yaml
 jobs:
