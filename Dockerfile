@@ -28,21 +28,22 @@ ENV PIP_NO_CACHE_DIR=1 \
     ANSIBLE_COLLECTIONS_PATH=/home/ansible/.ansible/collections \
     ANSIBLE_HOST_KEY_CHECKING=False
 
-HEALTHCHECK NONE
-
-COPY requirements.txt /tmp/requirements.txt
+HEALTHCHECK --interval=30s CMD ansible --version
 
 RUN apk add --no-cache \
     python3 py3-pip ca-certificates openssh-client git \
     sshpass rsync gnupg curl jq \
     && python3 -m venv "${VIRTUAL_ENV}" \
-    && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir -r /tmp/requirements.txt \
-    && rm /tmp/requirements.txt \
     && addgroup -g "${ANSIBLE_GID}" ansible \
     && adduser -D -u "${ANSIBLE_UID}" -G ansible \
        -s /bin/sh -h /home/ansible ansible \
     && mkdir -p /home/ansible/.ansible/collections /ansible \
     && chown -R ansible:ansible /home/ansible /ansible
+
+COPY requirements.txt /tmp/requirements.txt
+
+RUN "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt
 
 COPY --chown=ansible:ansible requirements.yml /home/ansible/requirements.yml
 

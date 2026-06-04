@@ -51,12 +51,20 @@ jobs:
 
       - name: Build image (load)
         run: |
-          docker buildx build --load \
+          docker buildx build --pull --load \
             --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --build-arg VCS_REF="${GITHUB_SHA::7}" \
             --build-arg VERSION="dev-${GITHUB_SHA::7}" \
             -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate \
             .
+
+      - name: Generate SBOM
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/syft:v1.27.0 \
+            ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate \
+            -o spdx-json=sbom.spdx.json
 
       - name: Test image
         uses: ./.forgejo/actions/smoke
@@ -75,6 +83,16 @@ jobs:
             ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate \
             ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev
           docker push ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev
+
+      - name: Attach SBOM to dev image
+        run: |
+          docker run --rm \
+            -v /root/.docker/config.json:/root/.docker/config.json:ro \
+            -v ${{ github.workspace }}:/workspace:ro \
+            ghcr.io/oras-project/oras:v1.2.2 \
+            attach ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:dev \
+            --artifact-type application/spdx+json \
+            /workspace/sbom.spdx.json
 
   build-release:
     if: github.ref_type == 'tag'
@@ -99,12 +117,20 @@ jobs:
 
       - name: Build image (load)
         run: |
-          docker buildx build --load \
+          docker buildx build --pull --load \
             --build-arg BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --build-arg VCS_REF="${GITHUB_SHA::7}" \
             --build-arg VERSION="${VERSION_TAG}" \
             -t ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate \
             .
+
+      - name: Generate SBOM
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/syft:v1.27.0 \
+            ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:test-candidate \
+            -o spdx-json=sbom.spdx.json
 
       - name: Test image
         uses: ./.forgejo/actions/smoke
@@ -127,3 +153,13 @@ jobs:
             ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:latest
           docker push ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:${{ env.VERSION_TAG }}
           docker push ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:latest
+
+      - name: Attach SBOM to release image
+        run: |
+          docker run --rm \
+            -v /root/.docker/config.json:/root/.docker/config.json:ro \
+            -v ${{ github.workspace }}:/workspace:ro \
+            ghcr.io/oras-project/oras:v1.2.2 \
+            attach ${{ vars.REGISTRY_USER }}/${{ vars.IMAGE_NAME }}:latest \
+            --artifact-type application/spdx+json \
+            /workspace/sbom.spdx.json

@@ -4,8 +4,8 @@
 [![Docker Image Size](https://img.shields.io/docker/image-size/maxbergmann/ansible-deploy/latest?arch=arm64&logo=docker&logoColor=white&label=size&color=1D63ED&style=for-the-badge&cacheSeconds=300)](https://hub.docker.com/r/maxbergmann/ansible-deploy)
 [![Docker Pulls](https://img.shields.io/docker/pulls/maxbergmann/ansible-deploy?logo=docker&logoColor=white&color=1D63ED&style=for-the-badge)](https://hub.docker.com/r/maxbergmann/ansible-deploy)
 [![Platform](https://img.shields.io/badge/platform-linux%2Farm64-0091BD?logo=arm&logoColor=white&style=for-the-badge)](https://hub.docker.com/r/maxbergmann/ansible-deploy/tags)
-[![ansible-core](https://img.shields.io/static/v1?label=ansible-core&message=2.20.5&color=EE0000&logo=ansible&logoColor=white&style=for-the-badge)](https://pypi.org/project/ansible-core/)
-[![ansible-lint](https://img.shields.io/static/v1?label=ansible-lint&message=26.4.0&color=EE0000&logo=ansible&logoColor=white&style=for-the-badge)](https://pypi.org/project/ansible-lint/)
+[![ansible-core](https://img.shields.io/static/v1?label=ansible-core&message=2.21&color=EE0000&logo=ansible&logoColor=white&style=for-the-badge)](https://pypi.org/project/ansible-core/)
+[![ansible-lint](https://img.shields.io/static/v1?label=ansible-lint&message=26.4&color=EE0000&logo=ansible&logoColor=white&style=for-the-badge)](https://pypi.org/project/ansible-lint/)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](https://github.com/bergmann-max/power-ansible/blob/main/LICENSE)
 
 Alpine-based Ansible image for CI/CD pipelines. Runs as non-root user (ansible, UID 1000) with pre-installed collections.
