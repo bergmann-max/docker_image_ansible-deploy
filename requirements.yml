@@ -11,4 +11,4 @@ collections:
   - name: community.general
     version: 13.4.0
   - name: devsec.hardening
-    version: 10.6.0
+    version: 11.0.0
