@@ -17,7 +17,7 @@ LABEL org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.title="ansible-deploy" \
       org.opencontainers.image.description="Alpine-based Ansible image for CI/CD pipelines. Non-root, pre-installed collections." \
-      org.opencontainers.image.base.name="docker.io/library/alpine:3.23"
+      org.opencontainers.image.base.name="docker.io/library/alpine:3.24"
 
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -42,8 +42,13 @@ RUN apk add --no-cache \
 
 COPY requirements.txt /tmp/requirements.txt
 
+# pip 26.x ships a CycloneDX SBOM of its vendored dependencies
+# (pip/_vendor/bom.cdx.json). Trivy ingests it as a third-party SBOM and
+# reports the vendored versions as installed packages, which fails the
+# vulnerability gate with false positives (e.g. GHSA-6q48-6c7w-9gw2).
 RUN "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir -r /tmp/requirements.txt \
-    && rm /tmp/requirements.txt
+    && rm /tmp/requirements.txt \
+    && find /opt/venv /usr/lib -path "*/pip/_vendor/bom.cdx.json" -delete
 
 COPY --chown=ansible:ansible requirements.yml /home/ansible/requirements.yml
 
